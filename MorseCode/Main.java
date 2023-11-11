@@ -4,17 +4,24 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 import javax.swing.*;
 
 public class Main{
     public static void main(String[] args) {
         launch();
+        System.out.println(new File(Paths.get("MorseCode","beepl.wav").toAbsolutePath().toString()));
     }
 
     static JFrame myFrame = new JFrame("Morse Converter");
+    static Boolean stopAudioThread;
 
     public static void launch() {
         String[] opts = {"Morse->Text","Text->Morse"};
@@ -73,6 +80,35 @@ public class Main{
                     }
                     System.out.println(output);
                     display(output);
+                    char[] beepList = output.toCharArray();
+                    stopAudioThread=false;
+
+                    Thread audioThread = new Thread(new Runnable() {
+                        @Override
+                        public void run(){
+                            for(char c : beepList){
+                                if(stopAudioThread){
+                                    return;
+                                }
+                                switch (c) {
+                                    case '.':
+                                        playAudio("beeps.wav");
+                                        break;
+                                    case '-':
+                                        playAudio("beepl.wav");
+                                        break;
+                                    case ' ':
+                                        try {
+                                            Thread.sleep(200);
+                                        } catch (InterruptedException e) {
+                                            e.printStackTrace();
+                                        }
+                                        break;
+                                }
+                            }
+                        }
+                    });
+                    audioThread.start();
                 }
             }
         });
@@ -82,6 +118,21 @@ public class Main{
                 field.setText("");
             }
         });
+    }
+
+    public static void playAudio(String fileName){
+        try {
+            File audioFile = new File(Paths.get("MorseCode",fileName).toAbsolutePath().toString());
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioInputStream);
+            clip.start();
+
+            Thread.sleep(clip.getMicrosecondLength() / 600);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static String toText(String query) {
@@ -187,6 +238,7 @@ public class Main{
             @Override
             public void windowClosing(WindowEvent e) {
                 myFrame.setVisible(true);
+                stopAudioThread = true;
             }
         });
     }
